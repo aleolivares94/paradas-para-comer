@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#173F37">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Paradas">
+  <meta name="description" content="Guarda y encuentra los restaurantes donde comés durante el trabajo.">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <title>Paradas para comer</title>
+  <style>
+    :root{color-scheme:light;--forest:#173f37;--forest2:#24594d;--sage:#e4eee7;--cream:#f8f8f4;--ink:#1a2f2a;--muted:#63746d;--edge:#e0e6df;--orange:#eeaa70;--white:#fff;--danger:#a63838;--shadow:0 12px 40px rgba(23,63,55,.07)}
+    *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--cream);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;font-size:16px;-webkit-font-smoothing:antialiased}
+    button,input,select,textarea{font:inherit}button{cursor:pointer}button:disabled{cursor:not-allowed;opacity:.6}
+    .wrap{max-width:780px;margin:auto;padding:24px 20px calc(50px + env(safe-area-inset-bottom));}
+    header{background:var(--forest);color:#fff;position:relative;overflow:hidden;border-radius:24px;padding:26px 25px 23px;box-shadow:var(--shadow)}
+    header::after{content:"";position:absolute;right:-70px;top:-80px;width:230px;height:230px;border:34px solid rgba(255,255,255,.055);border-radius:50%}
+    .eyebrow{font-weight:700;letter-spacing:.14em;text-transform:uppercase;font-size:11px;color:#c7d9d0;display:flex;gap:7px;align-items:center}
+    header h1{font-size:clamp(27px,5.7vw,38px);line-height:1.05;letter-spacing:-.055em;margin:12px 0 11px;max-width:480px}
+    header p{margin:0;line-height:1.45;color:#d9e5df;font-size:14px;max-width:450px}
+    .statbar{display:flex;gap:13px;margin-top:20px;position:relative;z-index:2;flex-wrap:wrap}
+    .stat{display:flex;gap:7px;align-items:baseline;background:rgba(255,255,255,.1);padding:9px 13px;border-radius:12px;font-size:12px;color:#e4eee7}
+    .stat strong{font-size:20px;color:white;line-height:1}
+    .panel{margin-top:18px;background:var(--white);border:1px solid var(--edge);box-shadow:var(--shadow);border-radius:21px;padding:22px}
+    .panel h2{margin:0 0 5px;letter-spacing:-.025em;font-size:19px;display:flex;align-items:center;gap:9px}
+    .panel-sub{color:var(--muted);font-size:13px;line-height:1.4;margin:0 0 19px}
+    .form-grid{display:grid;grid-template-columns:1fr 1fr;column-gap:13px;row-gap:14px}
+    label.field{display:flex;flex-direction:column;gap:7px;color:var(--ink);font-weight:650;font-size:13px}
+    .wide{grid-column:1/-1}
+    input,select,textarea{display:block;width:100%;appearance:none;border:1px solid #d8e1db;background:#fcfdfa;color:var(--ink);padding:12px 13px;border-radius:11px;outline:none;min-height:46px;box-shadow:none}
+    select{background-image:url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none" stroke="%2353665d" stroke-width="2" stroke-linecap="round"%3E%3Cpath d="m5 7 5 5 5-5"/%3E%3C/svg%3E');background-repeat:no-repeat;background-size:18px;background-position:right 12px center;padding-right:36px}
+    textarea{resize:vertical;min-height:68px}input:focus,select:focus,textarea:focus{border-color:#478c78;box-shadow:0 0 0 3px rgba(71,140,120,.12)}
+    input::placeholder,textarea::placeholder{color:#9ba9a1;font-weight:400}
+    .help{color:var(--muted);font-size:12px;font-weight:400;line-height:1.45}
+    .actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:17px}
+    .btn{border:1px solid transparent;border-radius:11px;min-height:43px;padding:10px 15px;font-size:13px;font-weight:750;display:inline-flex;align-items:center;justify-content:center;gap:7px;text-decoration:none;transition:background .12s,transform .12s}
+    .btn:active{transform:scale(.99)}.primary{background:var(--forest);color:#fff}.primary:hover{background:var(--forest2)}
+    .secondary{background:#edf2ee;color:var(--forest);border-color:#e3ebe5}.secondary:hover{background:#e1ece3}
+    .ghost{background:white;border-color:var(--edge);color:var(--muted)}.danger{color:var(--danger)}
+    .list-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+    .searchbar{display:grid;grid-template-columns:1fr minmax(150px,210px);gap:10px;margin:16px 0 10px}
+    .searchbar input,.searchbar select{background:white}
+    .resultcount{color:var(--muted);font-size:12px;margin:0 0 14px}
+    .place-list{display:grid;gap:11px}
+    .place{border-radius:17px;background:white;border:1px solid var(--edge);padding:18px 18px 15px;box-shadow:0 4px 16px rgba(23,63,55,.035)}
+    .place-line{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+    .tag{display:inline-flex;align-items:center;gap:5px;border-radius:7px;padding:5px 8px;background:var(--sage);color:var(--forest2);font-weight:750;font-size:11px}
+    .place h3{font-size:20px;letter-spacing:-.03em;line-height:1.2;margin:9px 0 6px;overflow-wrap:anywhere}
+    .where{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:5px;overflow-wrap:anywhere}
+    .note{color:#4d6258;font-size:13px;margin-top:11px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}
+    .place-actions{display:flex;gap:8px;flex-wrap:wrap;border-top:1px solid #edf0ec;padding-top:12px;margin-top:14px}
+    .place-actions .btn{min-height:38px;padding:8px 12px}
+    .empty{border:1px dashed #cad6cc;padding:32px 16px;text-align:center;border-radius:17px;background:#fafcf9;color:var(--muted)}
+    .empty .emoji{font-size:35px;margin-bottom:10px}.empty strong{display:block;color:var(--ink);font-size:16px;margin-bottom:5px}.empty p{margin:0 auto;max-width:320px;font-size:13px;line-height:1.5}
+    .backup{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}.backup p{margin:3px 0 0;color:var(--muted);font-size:13px;line-height:1.4}
+    .backup-actions{display:flex;gap:9px;flex-wrap:wrap}
+    .foot{font-size:11px;color:#7b8a80;text-align:center;line-height:1.45;margin-top:20px}
+    .toast{position:fixed;left:50%;bottom:calc(22px + env(safe-area-inset-bottom));transform:translate(-50%,20px);background:#173f37;color:#fff;font-size:13px;font-weight:600;max-width:calc(100vw - 36px);padding:12px 18px;border-radius:12px;box-shadow:0 10px 25px #0002;z-index:10;opacity:0;pointer-events:none;transition:all .2s}
+    .toast.show{transform:translate(-50%,0);opacity:1}
+    .hidden{display:none!important}
+    @media(max-width:540px){.wrap{padding:12px 12px calc(38px + env(safe-area-inset-bottom))}header{border-radius:18px;padding:24px 21px 21px}.panel{padding:18px 15px;border-radius:17px}.form-grid{grid-template-columns:1fr}.searchbar{grid-template-columns:1fr}.place{padding:16px 14px}.place h3{font-size:18px}.backup-actions{width:100%}.backup-actions .btn{flex:1}}
+    @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important}}
+  </style>
+</head>
+<body><div style="position:sticky;top:0;z-index:100;background:#fff0c5;color:#5d4917;text-align:center;padding:11px;font:bold 13px -apple-system,Arial,sans-serif;border-bottom:1px solid #d6c07a">🧪 VISTA DE PRUEBA · Los restaurantes guardados aquí NO se sincronizan con compañeros.</div>
+  <main class="wrap">
+    <header>
+      <div class="eyebrow"><span aria-hidden="true">✳</span> RESTAURANTES DEL TRABAJO</div>
+      <h1>Paradas<br>para comer<span style="color:#eeaa70">.</span></h1>
+      <p>Todos esos lugares donde comimos bien, guardados para la próxima vez.</p>
+      <div class="statbar" aria-live="polite">
+        <div class="stat"><strong id="statPlaces">0</strong> restaurantes</div>
+        <div class="stat"><strong id="statTowns">0</strong> pueblos y ciudades</div>
+      </div>
+    </header>
+
+    <section class="panel" id="formPanel" aria-labelledby="formTitle">
+      <h2 id="formTitle">＋ Guardar un restaurante</h2>
+      <p class="panel-sub">Solo necesitás la ubicación y el enlace de Google Maps.</p>
+      <form id="placeForm">
+        <div class="form-grid">
+          <label class="field">Provincia
+            <select id="province" required aria-label="Provincia"></select>
+          </label>
+          <label class="field">Pueblo o ciudad
+            <input id="town" name="town" required maxlength="90" autocomplete="address-level2" placeholder="Ej.: Don Benito">
+          </label>
+          <label class="field wide">Nombre del restaurante
+            <input id="restaurant" name="restaurant" required maxlength="130" placeholder="Ej.: Bar El Encuentro">
+          </label>
+          <label class="field wide">Enlace de Google Maps
+            <input id="maps" name="maps" required type="url" inputmode="url" placeholder="https://maps.app.goo.gl/…">
+            <span class="help">En Google Maps: buscá el restaurante → Compartir → Copiar enlace → pegalo acá.</span>
+          </label>
+          <label class="field wide">Nota (opcional)
+            <textarea id="note" maxlength="600" placeholder="Ej.: Buen menú del día, aparcamiento fácil…"></textarea>
+          </label>
+        </div>
+        <div class="actions">
+          <button class="btn primary" id="submit" type="submit">＋ Guardar restaurante</button>
+          <button class="btn ghost hidden" id="cancelEdit" type="button">Cancelar edición</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="panel" aria-labelledby="savedTitle">
+      <div class="list-head"><h2 id="savedTitle">📍 Restaurantes guardados</h2></div>
+      <div class="searchbar">
+        <input id="search" type="search" placeholder="🔎 Buscar restaurante o pueblo…" aria-label="Buscar restaurante o pueblo">
+        <select id="filter" aria-label="Filtrar por provincia"><option value="">Todas las provincias</option></select>
+      </div>
+      <div class="resultcount" id="resultcount" aria-live="polite"></div>
+      <div id="places" class="place-list" aria-live="polite"></div>
+    </section>
+
+    <section class="panel backup" aria-labelledby="backupTitle">
+      <div><h2 id="backupTitle">↧ Copia de seguridad</h2><p>Exportá tus sitios o importalos de otro teléfono.</p></div>
+      <div class="backup-actions"><button class="btn secondary" id="export" type="button">Exportar</button><button class="btn secondary" id="import" type="button">Importar</button></div>
+      <input type="file" id="file" class="hidden" accept="application/json,.json" aria-label="Seleccionar copia de seguridad">
+    </section>
+    <p class="foot">Los restaurantes se guardan en este dispositivo. No se sincronizan con otros teléfonos.<br>Hacé una copia de seguridad periódicamente para no perderlos.</p>
+  </main>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script>
+    'use strict';
+    const PROVINCES=['A Coruña','Álava','Albacete','Alicante','Almería','Asturias','Ávila','Badajoz','Barcelona','Bizkaia','Burgos','Cáceres','Cádiz','Cantabria','Castellón','Ceuta','Ciudad Real','Córdoba','Cuenca','Gipuzkoa','Girona','Granada','Guadalajara','Huelva','Huesca','Illes Balears','Jaén','La Rioja','Las Palmas','León','Lleida','Lugo','Madrid','Málaga','Melilla','Murcia','Navarra','Ourense','Palencia','Pontevedra','Salamanca','Santa Cruz de Tenerife','Segovia','Sevilla','Soria','Tarragona','Teruel','Toledo','Valencia','Valladolid','Zamora','Zaragoza'];
+    const STORAGE='paradas_para_comer_v1';
+    const $=id=>document.getElementById(id);
+    const normalize=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim().replace(/\s+/g,' ');
+    let places=[];
+    let editing=null;
+    let toastTimer;
+
+    function announce(message){const el=$('toast');el.textContent=message;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),3200)}
+    function store(){try{localStorage.setItem(STORAGE,JSON.stringify(places));return true}catch(e){announce('No se pudo guardar. Revisá el espacio del dispositivo.');return false}}
+    function load(){try{const raw=JSON.parse(localStorage.getItem(STORAGE)||'[]');places=Array.isArray(raw)?raw.filter(validPlace):[]}catch(e){places=[];announce('No se pudieron cargar los datos guardados.')}}
+    function validPlace(p){return p&&typeof p==='object'&&typeof p.province==='string'&&typeof p.town==='string'&&typeof p.restaurant==='string'&&typeof p.url==='string'&&!!safeUrl(p.url)}
+    function safeUrl(value){try{const parsed=new URL(String(value).trim());return ['https:','http:'].includes(parsed.protocol)?parsed.href:null}catch(e){return null}}
+    function option(parent,value,label){const el=document.createElement('option');el.value=value;el.textContent=label;parent.append(el)}
+    function populateOptions(){option($('province'),'','Elegí una provincia');for(const p of PROVINCES)option($('province'),p,p);for(const p of PROVINCES)option($('filter'),p,p);$('province').value='Badajoz'}
+    function resetForm(){editing=null;$('placeForm').reset();$('province').value='Badajoz';$('submit').textContent='＋ Guardar restaurante';$('formTitle').textContent='＋ Guardar un restaurante';$('cancelEdit').classList.add('hidden')}
+    function makeEl(tag,className,text){const el=document.createElement(tag);if(className)el.className=className;if(text!==undefined)el.textContent=text;return el}
+    function render(){
+      $('statPlaces').textContent=String(places.length);
+      $('statTowns').textContent=String(new Set(places.map(p=>normalize(p.province)+'|'+normalize(p.town))).size);
+      const q=normalize($('search').value),province=$('filter').value;
+      const filtered=places.filter(p=>(!province||p.province===province)&&(!q||normalize(p.town+' '+p.restaurant+' '+p.province+' '+(p.note||'')).includes(q)))
+        .sort((a,b)=>a.province.localeCompare(b.province,'es')||a.town.localeCompare(b.town,'es')||a.restaurant.localeCompare(b.restaurant,'es'));
+      $('resultcount').textContent=filtered.length+' '+(filtered.length===1?'restaurante':'restaurantes')+(province?' en '+province:'');
+      const parent=$('places');parent.replaceChildren();
+      if(!filtered.length){const empty=makeEl('div','empty');empty.append(makeEl('div','emoji',places.length?'🔎':'🍽️'));empty.append(makeEl('strong','',places.length?'No encontramos resultados':'Todavía no guardaste restaurantes'));empty.append(makeEl('p','',places.length?'Probá cambiando el filtro o el texto de búsqueda.':'Añadí el primer lugar donde comieron durante el trabajo y lo vas a tener siempre a mano.'));parent.append(empty);return}
+      for(const p of filtered){
+        const article=makeEl('article','place');const line=makeEl('div','place-line');line.append(makeEl('span','tag',p.province));article.append(line);
+        article.append(makeEl('h3','',p.restaurant));article.append(makeEl('div','where','⌖ '+p.town));
+        if(p.note)article.append(makeEl('div','note',p.note));
+        const actions=makeEl('div','place-actions');const go=makeEl('a','btn primary','↗ Cómo llegar');go.href=p.url;go.target='_blank';go.rel='noopener noreferrer';go.setAttribute('aria-label','Abrir Google Maps para '+p.restaurant);actions.append(go);
+        const edit=makeEl('button','btn secondary','Editar');edit.type='button';edit.addEventListener('click',()=>startEdit(p.id));actions.append(edit);
+        const del=makeEl('button','btn ghost danger','Eliminar');del.type='button';del.addEventListener('click',()=>deletePlace(p.id));actions.append(del);
+        article.append(actions);parent.append(article);
+      }
+    }
+    function startEdit(id){const p=places.find(x=>x.id===id);if(!p)return;editing=id;$('province').value=p.province;$('town').value=p.town;$('restaurant').value=p.restaurant;$('maps').value=p.url;$('note').value=p.note||'';$('submit').textContent='✓ Guardar cambios';$('formTitle').textContent='✎ Editar restaurante';$('cancelEdit').classList.remove('hidden');$('formPanel').scrollIntoView({behavior:'smooth',block:'start'});$('restaurant').focus({preventScroll:true})}
+    function deletePlace(id){const p=places.find(x=>x.id===id);if(!p)return;if(!window.confirm('¿Eliminar «'+p.restaurant+'» de tus restaurantes guardados?'))return;places=places.filter(x=>x.id!==id);if(!store())return;if(editing===id)resetForm();render();announce('Restaurante eliminado')}
+    $('placeForm').addEventListener('submit',event=>{
+      event.preventDefault();const province=$('province').value.trim(),town=$('town').value.trim(),restaurant=$('restaurant').value.trim(),url=safeUrl($('maps').value),note=$('note').value.trim();
+      if(!province||!town||!restaurant){announce('Completá provincia, pueblo y restaurante.');return}
+      if(!url){announce('Pegá un enlace válido de Google Maps (https://…).');$('maps').focus();return}
+      const duplicate=places.find(p=>p.id!==editing&&normalize(p.province)===normalize(province)&&normalize(p.town)===normalize(town)&&normalize(p.restaurant)===normalize(restaurant));
+      if(duplicate){announce('Ese restaurante ya está guardado. Podés editarlo.');return}
+      const updated={id:editing||('place-'+Date.now()+'-'+Math.random().toString(36).slice(2,9)),province,town,restaurant,url,note,createdAt:new Date().toISOString()};
+      const before=places.slice();if(editing){places=places.map(p=>p.id===editing?{...updated,createdAt:p.createdAt||updated.createdAt}:p)}else places.push(updated);
+      if(!store()){places=before;return}const wasEditing=!!editing;resetForm();render();announce(wasEditing?'Restaurante actualizado ✓':'Restaurante guardado ✓');
+    });
+    $('cancelEdit').addEventListener('click',resetForm);
+    $('search').addEventListener('input',render);
+    $('filter').addEventListener('change',render);
+    $('export').addEventListener('click',()=>{
+      if(!places.length){announce('No hay restaurantes para exportar todavía.');return}
+      const blob=new Blob([JSON.stringify({app:'Paradas para comer',version:1,exportedAt:new Date().toISOString(),places},null,2)],{type:'application/json'});
+      const a=document.createElement('a');const u=URL.createObjectURL(blob);a.href=u;a.download='mis-restaurantes-'+new Date().toISOString().slice(0,10)+'.json';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),3000);announce('Copia de seguridad descargada');
+    });
+    $('import').addEventListener('click',()=>$('file').click());
+    $('file').addEventListener('change',async event=>{
+      const file=event.target.files[0];if(!file)return;if(file.size>2*1024*1024){announce('El archivo es demasiado grande (máx. 2 MB).');event.target.value='';return}
+      try{const parsed=JSON.parse(await file.text()),entries=Array.isArray(parsed)?parsed:parsed.places;if(!Array.isArray(entries))throw Error('formato');
+        const incoming=entries.filter(validPlace);if(entries.length&&incoming.length===0)throw Error('sin entradas válidas');const before=places.slice();let count=0;
+        for(const p of incoming){if(!p.province||!p.town.trim()||!p.restaurant.trim())continue;
+          if(places.some(x=>normalize(x.province)===normalize(p.province)&&normalize(x.town)===normalize(p.town)&&normalize(x.restaurant)===normalize(p.restaurant)))continue;
+          places.push({id:'place-'+Date.now()+'-'+Math.random().toString(36).slice(2,9),province:String(p.province).slice(0,90),town:String(p.town).slice(0,90),restaurant:String(p.restaurant).slice(0,130),url:safeUrl(p.url),note:String(p.note||'').slice(0,600),createdAt:p.createdAt||new Date().toISOString()});count++;
+        }
+        if(!store()){places=before;return}render();announce(count+' '+(count===1?'restaurante importado':'restaurantes importados')+(incoming.length>count?' (duplicados omitidos)':''));
+      }catch(e){announce('No se pudo importar. Elegí una copia JSON válida.')}finally{event.target.value=''}
+    });
+    populateOptions();load();render();
+    if('serviceWorker' in navigator&&location.protocol.startsWith('http'))window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+  </script>
+</body>
+</html>

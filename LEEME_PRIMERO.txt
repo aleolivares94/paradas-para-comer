@@ -1,0 +1,33 @@
+PARADAS PARA COMER — Lista para subir a GitHub Pages
+
+¡Tu aplicación ya está conectada por código con el proyecto Firebase!
+No necesitas instalar npm ni pegar la configuración manualmente.
+
+PASOS PENDIENTES
+1. Crea (o usa) una cuenta gratuita de GitHub.
+2. Crea un repositorio PUBLICO llamado paradas-para-comer.
+3. Sube TODOS los archivos de este ZIP descomprimidos a la RAIZ del repositorio
+   (no subas el ZIP como único archivo).
+4. En el repositorio: Settings > Pages > Deploy from a branch > main / (root) > Save.
+5. Abre la URL que GitHub Pages muestre cuando publique el sitio.
+6. En Firebase Authentication > Configuracion > Dominios autorizados,
+   agrega tu dominio TUUSUARIO.github.io si aun no figura.
+7. Inicia sesion con tecnico2@basculasalvarez.com y la contrasena que
+   creaste en Authentication (NO la compartas por chat).
+8. Si aparece "Verifica tu correo", pulsa "Reenviar email", verifica
+   desde tu bandeja y vuelve a la app para pulsar "Ya verifique mi correo".
+
+ESTADO YA CONFIGURADO EN FIREBASE
+- Proyecto: paradas-para-comer
+- Firestore (default)
+- Documento teams/equipo
+- Administrador teams/equipo/members/tecnico2@basculasalvarez.com
+- Metodo de acceso correo y contrasena
+- Reglas de Firestore publicadas segun capturas previas
+
+IMPORTANTE
+- El correo debe estar verificado para acceder a los restaurantes.
+- Mantene el proyecto en plan Spark. No se necesita Blaze.
+- Los restaurantes se guardan en Firestore, NO dentro de este ZIP o GitHub.
+- La app no puede sincronizar hasta que se publique en una URL HTTPS.
+- Nunca compartas contrasenas ni claves privadas de cuentas de servicio.

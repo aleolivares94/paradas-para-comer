@@ -1,0 +1,63 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function verified() {
+      return request.auth != null && request.auth.token.email_verified == true
+        && request.auth.token.email is string;
+    }
+    function memberPath(teamId) {
+      return /databases/$(database)/documents/teams/$(teamId)/members/$(request.auth.token.email);
+    }
+    function isMember(teamId) {
+      return verified() && exists(memberPath(teamId));
+    }
+    function isAdmin(teamId) {
+      return isMember(teamId) && get(memberPath(teamId)).data.role == 'admin';
+    }
+    function validRestaurant() {
+      let d = request.resource.data;
+      return d.keys().hasAll(['province','town','restaurant','url','note','createdAt','updatedAt','authorEmail','updatedBy'])
+        && d.keys().hasOnly(['province','town','restaurant','url','note','createdAt','updatedAt','authorEmail','updatedBy'])
+        && d.province is string && d.province.size() >= 2 && d.province.size() <= 60
+        && d.town is string && d.town.size() >= 1 && d.town.size() <= 90
+        && d.restaurant is string && d.restaurant.size() >= 1 && d.restaurant.size() <= 130
+        && d.note is string && d.note.size() <= 600
+        && d.url is string && d.url.size() <= 2048
+        && d.url.matches('https://.+')
+        && d.authorEmail is string && d.authorEmail.size() <= 254
+        && d.updatedBy == request.auth.token.email
+        && d.createdAt is timestamp && d.updatedAt == request.time;
+    }
+
+    // Los documentos del equipo nunca son públicos.
+    match /teams/{teamId} {
+      allow read, write: if false;
+      match /members/{email} {
+        // Cada usuario verificado puede comprobar su propia invitación.
+        allow get: if verified() && (request.auth.token.email == email || isAdmin(teamId));
+        allow list: if isAdmin(teamId);
+        // El administrador puede invitar compañeros, pero no crear nuevos administradores desde la app.
+        allow create: if isAdmin(teamId)
+          && request.resource.data.keys().hasOnly(['email','role','addedAt'])
+          && request.resource.data.keys().hasAll(['email','role','addedAt'])
+          && request.resource.data.email == email
+          && request.resource.data.role == 'member'
+          && request.resource.data.addedAt == request.time;
+        allow update: if false;
+        allow delete: if isAdmin(teamId) && resource.data.role == 'member';
+      }
+      match /restaurants/{restaurantId} {
+        allow read: if isMember(teamId);
+        allow create: if isMember(teamId)
+          && validRestaurant()
+          && request.resource.data.authorEmail == request.auth.token.email
+          && request.resource.data.createdAt == request.time;
+        allow update: if isMember(teamId)
+          && validRestaurant()
+          && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.authorEmail == resource.data.authorEmail;
+        allow delete: if isMember(teamId);
+      }
+    }
+  }
+}

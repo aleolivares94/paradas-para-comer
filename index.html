@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#173f37">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Paradas">
+  <meta name="description" content="Guardá y encontrá restaurantes compartidos con tus compañeros del trabajo.">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icon-192.png" type="image/png">
+  <link rel="apple-touch-icon" href="./icon-192.png">
+  <link rel="stylesheet" href="./styles.css">
+  <title>Paradas para comer · Equipo</title>
+</head>
+<body>
+  <main class="wrap">
+    <header class="hero">
+      <div class="eyebrow">✳ AGENDA COMPARTIDA DEL TRABAJO</div>
+      <h1>Paradas<br>para comer<span class="accent">.</span></h1>
+      <p>Los restaurantes que descubrimos en ruta, guardados entre todos para la próxima vez.</p>
+      <div class="hero-bottom">
+        <div class="stat"><b id="statPlaces">—</b><span>restaurantes</span></div>
+        <div class="stat"><b id="statTowns">—</b><span>pueblos</span></div>
+        <div id="syncStatus" class="status"><span class="status-dot"></span><span id="syncText">Sin conectar</span></div>
+      </div>
+    </header>
+
+    <section id="setupScreen" class="panel hidden" aria-label="Configurar aplicación">
+      <div class="panel-icon">⚙️</div>
+      <h2>Falta conectar la app</h2>
+      <p>La versión compartida ya está preparada, pero necesita un proyecto gratuito de Firebase para guardar la misma lista en todos los celulares.</p>
+      <p>Seguí el archivo <strong>INSTRUCCIONES.md</strong> incluido en la descarga y completá <code>firebase-config.js</code>.</p>
+      <div class="actions"><a class="btn primary" href="https://console.firebase.google.com/" target="_blank" rel="noopener noreferrer">Abrir Firebase ↗</a><a class="btn secondary" href="./demo.html">Probar versión de muestra</a></div>
+    </section>
+
+    <section id="authScreen" class="panel hidden" aria-label="Acceso a la aplicación">
+      <div class="sectiontop"><span class="pill">🔒 Acceso del equipo</span></div>
+      <h2 id="authTitle">Entrar a Paradas</h2>
+      <p class="sub">Cada compañero usa su correo y contraseña. Solo pueden ver los restaurantes quienes estén invitados.</p>
+      <form id="authForm" class="stack">
+        <label class="field">Correo electrónico<input id="authEmail" type="email" autocomplete="email" required placeholder="nombre@correo.com"></label>
+        <label class="field">Contraseña<input id="authPassword" type="password" autocomplete="current-password" required minlength="6" placeholder="Mínimo 6 caracteres"></label>
+        <button class="btn primary widebtn" id="authSubmit" type="submit">Entrar</button>
+      </form>
+      <p id="authError" class="feedback error hidden" role="alert"></p>
+      <button id="toggleAuth" type="button" class="link-btn">¿Primera vez? Crear una cuenta</button>
+      <button id="resetPassword" type="button" class="link-btn">Olvidé mi contraseña</button>
+    </section>
+
+    <section id="verifyScreen" class="panel hidden" aria-label="Verificar correo">
+      <div class="panel-icon">✉️</div>
+      <h2>Verificá tu correo</h2>
+      <p>Para cuidar la lista compartida, Firebase necesita que confirmes tu dirección. Abrí el email de verificación y pulsá su enlace.</p>
+      <p class="callout" id="verifyEmail"></p>
+      <div class="actions"><button id="checkVerified" class="btn primary" type="button">Ya verifiqué mi correo</button><button id="resendVerification" class="btn secondary" type="button">Reenviar email</button><button class="btn ghost logout" type="button">Salir</button></div>
+    </section>
+
+    <section id="notMemberScreen" class="panel hidden" aria-label="Falta invitación">
+      <div class="panel-icon">🔐</div>
+      <h2>Falta tu invitación</h2>
+      <p>Tu correo ya está verificado, pero todavía no aparece en la lista autorizada del equipo. Pedile al administrador que lo agregue.</p>
+      <p class="callout" id="waitingEmail"></p>
+      <div class="actions"><button class="btn primary" type="button" id="retryMember">Volver a comprobar</button><button class="btn ghost logout" type="button">Salir</button></div>
+    </section>
+
+    <div id="appScreen" class="hidden">
+      <div class="account-bar"><span>👤 <b id="currentEmail"></b></span><button class="btn tiny ghost logout" type="button">Cerrar sesión</button></div>
+      <section class="panel" id="formPanel">
+        <div class="sectiontop"><span class="pill">＋ Nueva parada</span></div>
+        <h2 id="formTitle">Guardar un restaurante</h2>
+        <p class="sub">En cuanto lo guardes, tus compañeros podrán encontrarlo.</p>
+        <form id="restaurantForm">
+          <div class="fields">
+            <label class="field">Provincia<select id="province" required><option value="">Elegí provincia</option></select></label>
+            <label class="field">Pueblo o ciudad<input id="town" type="text" required maxlength="90" placeholder="Ej.: Don Benito"></label>
+            <label class="field full">Nombre del restaurante<input id="restaurant" type="text" required maxlength="130" placeholder="Ej.: Bar El Encuentro"></label>
+            <label class="field full">Enlace de Google Maps<input id="maps" type="url" inputmode="url" required maxlength="2048" placeholder="https://maps.app.goo.gl/…"><small>Google Maps → Compartir → Copiar enlace.</small></label>
+            <label class="field full">Nota (opcional)<textarea id="note" maxlength="600" placeholder="Ej.: Menú del día 13 €, fácil aparcar…"></textarea></label>
+          </div>
+          <div class="actions"><button class="btn primary" type="submit" id="saveBtn">＋ Guardar restaurante</button><button class="btn ghost hidden" type="button" id="cancelEdit">Cancelar</button></div>
+        </form>
+      </section>
+      <section class="panel">
+        <div class="sectiontop"><span class="pill">📍 Nuestra guía</span><span id="countText" class="meta">0 lugares</span></div>
+        <h2>Restaurantes guardados</h2>
+        <div class="searchrow"><input type="search" id="search" aria-label="Buscar" placeholder="🔎 Buscar restaurante o pueblo"><select id="filter" aria-label="Filtrar provincia"><option value="">Todas las provincias</option></select></div>
+        <div class="places" id="places"><div class="empty">Cargando restaurantes…</div></div>
+      </section>
+      <section id="membersPanel" class="panel hidden">
+        <div class="sectiontop"><span class="pill">👥 Administrar equipo</span></div>
+        <h2>Invitar compañeros</h2>
+        <p class="sub">Solo los correos invitados pueden entrar a la lista. Cada compañero crea su propia contraseña.</p>
+        <form id="inviteForm" class="inviteform"><input id="inviteEmail" type="email" placeholder="Correo del compañero" required aria-label="Correo del compañero"><button id="inviteBtn" type="submit" class="btn primary">Invitar</button></form>
+        <div id="membersList" class="memberlist"></div>
+      </section>
+      <section class="panel backup">
+        <div><h2>Respaldo de la guía</h2><p class="sub">Descargá una copia o importá la copia JSON de la versión anterior.</p></div>
+        <div class="actions"><button id="exportBtn" class="btn secondary" type="button">↓ Exportar JSON</button><button id="importBtn" class="btn ghost" type="button">↑ Importar JSON</button><input id="importFile" class="hidden" type="file" accept=".json,application/json"></div>
+      </section>
+    </div>
+    <p class="footer">Paradas para comer · La lista compartida necesita internet para sincronizarse. <span id="footerVersion">Versión equipo 2.0</span></p>
+  </main>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="./app.js"></script>
+  <script>if ('serviceWorker' in navigator && location.protocol.startsWith('http')) window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));</script>
+</body>
+</html>
