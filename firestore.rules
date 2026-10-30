@@ -17,7 +17,7 @@ service cloud.firestore {
     function validRestaurant() {
       let d = request.resource.data;
       return d.keys().hasAll(['province','town','restaurant','url','note','createdAt','updatedAt','authorEmail','updatedBy'])
-        && d.keys().hasOnly(['province','town','restaurant','url','note','createdAt','updatedAt','authorEmail','updatedBy'])
+        && d.keys().hasOnly(['province','town','restaurant','url','note','createdAt','updatedAt','authorEmail','updatedBy','lat','lng'])
         && d.province is string && d.province.size() >= 2 && d.province.size() <= 60
         && d.town is string && d.town.size() >= 1 && d.town.size() <= 90
         && d.restaurant is string && d.restaurant.size() >= 1 && d.restaurant.size() <= 130
@@ -26,7 +26,13 @@ service cloud.firestore {
         && d.url.matches('https://.+')
         && d.authorEmail is string && d.authorEmail.size() <= 254
         && d.updatedBy == request.auth.token.email
-        && d.createdAt is timestamp && d.updatedAt == request.time;
+        && d.createdAt is timestamp && d.updatedAt == request.time
+        // Campos opcionales: los 2 juntos, valores numéricos dentro del rango geográfico.
+        && (!d.keys().hasAny(['lat','lng']) || (
+          d.keys().hasAll(['lat','lng'])
+          && d.lat is number && d.lng is number
+          && d.lat >= -90 && d.lat <= 90
+          && d.lng >= -180 && d.lng <= 180));
     }
 
     // Los documentos del equipo nunca son públicos.

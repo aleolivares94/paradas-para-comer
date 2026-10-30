@@ -5,9 +5,10 @@ import {
 } from 'https://www.gstatic.com/firebasejs/13.1.0/firebase-auth.js';
 import {
   getFirestore, collection, doc, getDoc, addDoc, updateDoc, deleteDoc,
-  setDoc, onSnapshot, serverTimestamp, writeBatch
+  setDoc, onSnapshot, serverTimestamp, writeBatch, deleteField
 } from 'https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js';
 import { firebaseConfig, TEAM_ID } from './firebase-config.js';
+import { normalizedCoordinates, pairFromText, extractMapsCoordinates, isValidCoordinates, distanceKm, distanceLabel } from './location-utils.mjs';
 
 const $ = id => document.getElementById(id);
 const PROVINCES = ['Álava','Albacete','Alicante','Almería','Asturias','Ávila','Badajoz','Barcelona','Burgos','Cáceres','Cádiz','Cantabria','Castellón','Ciudad Real','Córdoba','A Coruña','Cuenca','Girona','Granada','Guadalajara','Gipuzkoa','Huelva','Huesca','Illes Balears','Jaén','León','Lleida','Lugo','Madrid','Málaga','Murcia','Navarra','Ourense','Palencia','Las Palmas','Pontevedra','La Rioja','Salamanca','Santa Cruz de Tenerife','Segovia','Sevilla','Soria','Tarragona','Teruel','Toledo','Valencia','Valladolid','Bizkaia','Zamora','Zaragoza','Ceuta','Melilla'];
@@ -15,6 +16,8 @@ let auth, db, restaurantsRef, membersRef;
 let places = [], editingId = null, activeUser = null, activeMember = null;
 let stopPlaces = null, stopMembers = null, toastTimer = null;
 let creatingAccount = false, busyAuth = false, busySave = false, sessionSerial = 0;
+let restaurantCoordinates = null, coordinatesManuallyCleared = false;
+let userPosition = null, nearMode = false, locationLoading = false;
 
 function show(screen) {
   for (const id of ['setupScreen','authScreen','verifyScreen','notMemberScreen','appScreen']) $(id).classList.toggle('hidden',id!==screen);
@@ -62,47 +65,136 @@ function resetSubscriptions() {
   if(stopPlaces) { stopPlaces();stopPlaces=null; }
   if(stopMembers) { stopMembers();stopMembers=null; }
   places=[]; activeMember=null;
+  nearMode=false;userPosition=null;
+  $('nearControls').classList.add('hidden'); $('nearBtn').textContent='⌖ Cerca de mí';
+  $('nearMessage').textContent='Consultamos tu ubicación solamente cuando lo pedís, sin guardarla.';
   $('statPlaces').textContent='—';$('statTowns').textContent='—';
 }
+
+// La ubicación del usuario solo existe en memoria; jamás se sube a Firebase.
+function setRestaurantCoordinates(coords, message) {
+  restaurantCoordinates = isValidCoordinates(coords) ? {lat:coords.lat,lng:coords.lng} : null;
+  coordinatesManuallyCleared = !restaurantCoordinates;
+  $('coordValue').value = restaurantCoordinates ? `${restaurantCoordinates.lat.toFixed(6)}, ${restaurantCoordinates.lng.toFixed(6)}` : '';
+  $('coordHint').textContent = message || (restaurantCoordinates
+    ? '✓ Coordenadas listas: este restaurante aparecerá en «Cerca de mí».'
+    : 'Sin coordenadas: se guardará igual, pero no aparecerá en «Cerca de mí».');
+  $('coordHint').classList.toggle('ok', !!restaurantCoordinates);
+}
+function locationErrorText(error) {
+  if(error?.code===1) return 'No diste permiso de ubicación. Podés activarlo en el navegador o usar coordenadas de prueba.';
+  if(error?.code===2) return 'No se pudo determinar tu ubicación. Probá desde el celular con GPS activo.';
+  if(error?.code===3) return 'La ubicación tardó demasiado. Probá otra vez o usá coordenadas de prueba.';
+  return 'No se pudo acceder a tu ubicación. Probá desde el celular o ingresá coordenadas.';
+}
+function getPosition() {
+  return new Promise((resolve,reject)=>{
+    if(!navigator.geolocation || !window.isSecureContext) { reject(new Error('secure')); return; }
+    navigator.geolocation.getCurrentPosition(pos=>resolve({lat:pos.coords.latitude,lng:pos.coords.longitude}),reject,
+      {enableHighAccuracy:true, timeout:16000, maximumAge:60000});
+  });
+}
+async function useCurrentRestaurantLocation() {
+  $('useRestaurantLocation').disabled=true;
+  $('coordHint').textContent='Buscando ubicación… aceptá el permiso si aparece.';
+  try {
+    const coords=await getPosition();
+    setRestaurantCoordinates(coords,'✓ Ubicación actual guardada para este restaurante. Usala solo si estás en el local.');
+  } catch(e) { $('coordHint').textContent=e.message==='secure'?'La ubicación necesita HTTPS (abrí la web publicada).':locationErrorText(e); }
+  finally { $('useRestaurantLocation').disabled=false; }
+}
+async function activateNearby(coordsOverride=null) {
+  if(locationLoading)return;
+  locationLoading=true;$('nearBtn').disabled=true;
+  $('nearMessage').textContent='Buscando tu ubicación…';
+  try {
+    userPosition = coordsOverride || await getPosition();
+    nearMode=true;
+    $('search').value='';$('filter').value='';
+    $('nearControls').classList.remove('hidden');
+    $('nearBtn').textContent='↻ Actualizar mi ubicación';
+    renderPlaces();
+  } catch(e) {
+    $('nearMessage').textContent=e.message==='secure'?'La ubicación solo funciona con HTTPS. Abrí la web publicada.':locationErrorText(e);
+    toast('No se pudo obtener la ubicación.');
+  } finally {locationLoading=false;$('nearBtn').disabled=false;}
+}
+function deactivateNearby() {
+  nearMode=false;userPosition=null;
+  $('nearControls').classList.add('hidden');
+  $('nearBtn').textContent='⌖ Cerca de mí';
+  $('nearMessage').textContent='Tu ubicación solo se consulta al pulsar el botón; no se comparte.';
+  renderPlaces();
+}
+
 function resetForm() {
   editingId=null;$('restaurantForm').reset();$('province').value='Badajoz';
   $('formTitle').textContent='Guardar un restaurante';$('saveBtn').textContent='＋ Guardar restaurante';
   $('cancelEdit').classList.add('hidden');
+  $('coordDetails').open=false; setRestaurantCoordinates(null);coordinatesManuallyCleared=false;
 }
 function renderPlaces() {
   $('statPlaces').textContent=String(places.length);
   $('statTowns').textContent=String(new Set(places.map(p=>normalize(p.province)+'/'+normalize(p.town))).size);
-  const query=normalize($('search').value), prov=$('filter').value;
-  const filtered=places.filter(p=>(!prov||p.province===prov)&&(!query||normalize([p.province,p.town,p.restaurant,p.note].join(' ')).includes(query)))
-    .sort((a,b)=>a.province.localeCompare(b.province,'es')||a.town.localeCompare(b.town,'es')||a.restaurant.localeCompare(b.restaurant,'es'));
-  $('countText').textContent=filtered.length+' '+(filtered.length===1?'lugar':'lugares');
-  const container=$('places');container.replaceChildren();
-  if(!filtered.length) {
-    container.append(el('div','empty',places.length?'No hay resultados para esa búsqueda.':'🍽️ Todavía no hay restaurantes. ¡Agreguen el primero!'));
-    return;
+  const query=normalize($('search').value),prov=$('filter').value;
+  const filtered=places.filter(p=>(!prov||p.province===prov)&&(!query||normalize([p.province,p.town,p.restaurant,p.note].join(' ')).includes(query)));
+  let visible, noCoordinates=[];
+  if(nearMode && userPosition) {
+    const radius=Number($('nearRadius').value);
+    visible=filtered.map(p=>({...p,km:distanceKm(userPosition,p)}))
+      .filter(p=>p.km !== null && p.km<=radius).sort((a,b)=>a.km-b.km);
+    noCoordinates=filtered.filter(p=>!isValidCoordinates(p));
+    $('nearMessage').textContent=`${visible.length} restaurantes a menos de ${radius} km (en línea recta). ${noCoordinates.length} sin ubicación exacta.`;
+  } else {
+    visible=filtered.sort((a,b)=>a.province.localeCompare(b.province,'es')||a.town.localeCompare(b.town,'es')||a.restaurant.localeCompare(b.restaurant,'es'));
   }
-  for (const place of filtered) {
-    const card=el('article','place');card.append(el('span','tag',place.province));
+  $('countText').textContent=visible.length+' '+(visible.length===1?'lugar':'lugares');
+  const container=$('places');container.replaceChildren();
+  if(!visible.length) {
+    container.append(el('div','empty',nearMode
+      ? 'No hay restaurantes localizados dentro de este radio. Ampliá la distancia o añadí coordenadas a una parada.'
+      : places.length?'No hay resultados para esa búsqueda.':'🍽️ Todavía no hay restaurantes. ¡Agreguen el primero!'));
+  }
+  for (const place of visible) {
+    const card=el('article','place');
+    const labels=el('div','place-labels');labels.append(el('span','tag',place.province));
+    if(nearMode&&place.km!==undefined)labels.append(el('span','distance-tag','⌖ '+distanceLabel(place.km)));
+    card.append(labels);
     card.append(el('h3','',place.restaurant),el('div','where','⌖ '+place.town));
     if(place.note)card.append(el('div','note',place.note));
     if(place.authorEmail)card.append(el('div','by','Guardado por '+place.authorEmail));
     const buttons=el('div','place-actions');
     const go=el('a','btn primary','↗ Cómo llegar');
-    // Se vuelve a validar el enlace antes de utilizarlo.
     const safe=validMapsUrl(place.url);
-    if(safe) { go.href=safe;go.target='_blank';go.rel='noopener noreferrer';buttons.append(go); }
+    if(safe){go.href=safe;go.target='_blank';go.rel='noopener noreferrer';buttons.append(go);}
     const edit=el('button','btn secondary','Editar');edit.type='button';edit.addEventListener('click',()=>startEdit(place.id));buttons.append(edit);
     const del=el('button','btn ghost danger','Eliminar');del.type='button';del.addEventListener('click',()=>removePlace(place.id));buttons.append(del);
     card.append(buttons);container.append(card);
   }
+  const pending=$('missingGeo');pending.replaceChildren();
+  if(nearMode && noCoordinates.length) {
+    const summary=el('summary','',`${noCoordinates.length} restaurante(s) pendiente(s) de ubicación exacta`);
+    const note=el('p','geo-small','Seguirán apareciendo en la lista normal. Para incluirlos en «Cerca de mí», editá cada uno y añadí sus coordenadas.');
+    pending.append(summary,note);
+    for(const place of noCoordinates) {
+      const line=el('div','missing-row');line.append(el('span','',`${place.restaurant} · ${place.town}`));
+      const button=el('button','btn tiny secondary','Añadir ubicación');button.type='button';
+      button.addEventListener('click',()=>startEdit(place.id));line.append(button);pending.append(line);
+    }
+    pending.classList.remove('hidden');
+  } else {pending.classList.add('hidden');pending.open=false;}
 }
 function startEdit(id) {
   const p=places.find(item=>item.id===id);if(!p)return;
   editingId=p.id;
   $('province').value=p.province;$('town').value=p.town;$('restaurant').value=p.restaurant;
   $('maps').value=p.url;$('note').value=p.note||'';
+  const c=isValidCoordinates(p)?{lat:p.lat,lng:p.lng}:extractMapsCoordinates(p.url);
+  setRestaurantCoordinates(c,c?'✓ Ubicación del restaurante preparada.':'Añadí la ubicación para que aparezca en «Cerca de mí».');
+  coordinatesManuallyCleared=false;
   $('formTitle').textContent='Editar restaurante';$('saveBtn').textContent='✓ Guardar cambios';
   $('cancelEdit').classList.remove('hidden');
+  $('coordDetails').open=true;
   $('formPanel').scrollIntoView({behavior:'smooth',block:'start'});
 }
 async function removePlace(id) {
@@ -119,11 +211,14 @@ async function saveRestaurant(event) {
   if(!province||!town||!restaurant) {toast('Completá provincia, pueblo y restaurante.');return;}
   if(!url) {toast('Pegá un enlace válido de Google Maps (https://maps.app.goo.gl/…).');$('maps').focus();return;}
   const candidate={province,town,restaurant,url,note};
+  if ($('coordValue').value.trim() && !restaurantCoordinates) {toast('Revisá las coordenadas: usá latitud, longitud (por ejemplo 38.97, -5.80).');$('coordValue').focus();return;}
+  if(restaurantCoordinates) {candidate.lat=restaurantCoordinates.lat;candidate.lng=restaurantCoordinates.lng;}
   if(places.some(p=>p.id!==editingId&&keyOf(p)===keyOf(candidate))) {toast('Ese restaurante ya está guardado. Podés editarlo.');return;}
   busySave=true;$('saveBtn').disabled=true;
   try {
     const data={...candidate,updatedAt:serverTimestamp(),updatedBy:activeUser.email};
     if(editingId) {
+      if(!restaurantCoordinates && coordinatesManuallyCleared) {data.lat=deleteField();data.lng=deleteField();}
       await updateDoc(doc(restaurantsRef,editingId),data);
       toast('Cambios sincronizados con el equipo ✓');
     } else {
@@ -230,7 +325,8 @@ async function checkVerification() {
 }
 function downloadBackup() {
   const payload={app:'Paradas para comer',version:2,exportedAt:new Date().toISOString(),places:places.map(p=>({
-    province:p.province,town:p.town,restaurant:p.restaurant,url:p.url,note:p.note||'',createdAt:p.createdAt?.toDate?.()?.toISOString?.()||''
+    province:p.province,town:p.town,restaurant:p.restaurant,url:p.url,note:p.note||'',
+    ...(isValidCoordinates(p)?{lat:p.lat,lng:p.lng}:{}),createdAt:p.createdAt?.toDate?.()?.toISOString?.()||''
   }))};
   const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;
@@ -250,6 +346,8 @@ async function importBackup(event) {
       const obj={province:String(item.province||'').trim(),town:String(item.town||'').trim(),
         restaurant:String(item.restaurant||'').trim(),url:validMapsUrl(item.url),note:String(item.note||'').trim().slice(0,600)};
       if(!PROVINCES.includes(obj.province)||!obj.town||obj.town.length>90||!obj.restaurant||obj.restaurant.length>130||!obj.url)continue;
+      const c=normalizedCoordinates(item.lat,item.lng);
+      if(item.lat!=null && item.lng!=null && c) {obj.lat=c.lat;obj.lng=c.lng;}
       const key=keyOf(obj);if(known.has(key))continue;known.add(key);fresh.push(obj);
     }
     if(!fresh.length){toast('No hay restaurantes nuevos válidos para importar.');return;}
@@ -264,6 +362,36 @@ function bindEvents() {
   $('province').value='Badajoz';
   $('search').addEventListener('input',renderPlaces);$('filter').addEventListener('change',renderPlaces);
   $('restaurantForm').addEventListener('submit',saveRestaurant);$('cancelEdit').addEventListener('click',resetForm);
+  $('maps').addEventListener('change',()=>{
+    const c=extractMapsCoordinates($('maps').value);
+    if(c) setRestaurantCoordinates(c,'✓ Coordenadas del marcador obtenidas del enlace de Google Maps.');
+    else $('coordHint').textContent=restaurantCoordinates
+      ? 'Las coordenadas anteriores siguen guardadas. Comprobá que corresponden al nuevo enlace.'
+      : 'Este enlace no incluye coordenadas visibles. Podés añadirlas manualmente o estando en el local.';
+  });
+  $('detectCoordinates').addEventListener('click',()=>{
+    const c=extractMapsCoordinates($('maps').value);
+    if(c) setRestaurantCoordinates(c,'✓ Coordenadas detectadas en el enlace de Maps.');
+    else toast('Este enlace no trae coordenadas visibles. Probá con un enlace completo o pegá la latitud y longitud.');
+  });
+  $('coordValue').addEventListener('input',()=>{
+    const raw=$('coordValue').value.trim();
+    const c=raw?pairFromText(raw):null;
+    restaurantCoordinates=c;
+    coordinatesManuallyCleared=!c;
+    $('coordHint').textContent=c?'✓ Coordenadas válidas.':'Pegá la pareja «latitud, longitud» (con punto decimal).';
+    $('coordHint').classList.toggle('ok',!!c);
+  });
+  $('useRestaurantLocation').addEventListener('click',useCurrentRestaurantLocation);
+  $('clearCoordinates').addEventListener('click',()=>setRestaurantCoordinates(null));
+  $('nearBtn').addEventListener('click',()=>activateNearby());
+  $('nearRadius').addEventListener('change',renderPlaces);
+  $('nearClear').addEventListener('click',deactivateNearby);
+  $('nearTestBtn').addEventListener('click',()=>{
+    const coords=pairFromText($('nearTestValue').value);
+    if(!coords){toast('Ingresá coordenadas válidas, por ejemplo 38.973, -5.797.');return;}
+    activateNearby(coords);
+  });
   $('authForm').addEventListener('submit',submitAuth);$('toggleAuth').addEventListener('click',changeAuthMode);
   $('resetPassword').addEventListener('click',async()=>{
     const email=$('authEmail').value.trim();if(!email){toast('Escribí tu correo electrónico primero.');return;}
@@ -282,6 +410,7 @@ function bindEvents() {
   $('importBtn').addEventListener('click',()=>$('importFile').click());
   $('importFile').addEventListener('change',importBackup);
   window.addEventListener('offline',()=>sync('Sin conexión','error'));
+  $('footerVersion').textContent='Versión equipo 3.0 · Cerca de mí';
 }
 function main() {
   bindEvents();

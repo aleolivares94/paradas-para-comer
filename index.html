@@ -77,6 +77,22 @@
             <label class="field">Pueblo o ciudad<input id="town" type="text" required maxlength="90" placeholder="Ej.: Don Benito"></label>
             <label class="field full">Nombre del restaurante<input id="restaurant" type="text" required maxlength="130" placeholder="Ej.: Bar El Encuentro"></label>
             <label class="field full">Enlace de Google Maps<input id="maps" type="url" inputmode="url" required maxlength="2048" placeholder="https://maps.app.goo.gl/…"><small>Google Maps → Compartir → Copiar enlace.</small></label>
+            <div class="field full coordinate-area">
+              <details id="coordDetails" class="coord-details">
+                <summary>📍 Ubicación exacta del restaurante <span class="optional">(recomendado para «Cerca de mí»)</span></summary>
+                <p class="geo-small">Guardamos la posición del restaurante, no la tuya. Si estás en el local, podés capturar su ubicación. Si no, pegá las coordenadas de Google Maps.</p>
+                <label class="field">Coordenadas (latitud, longitud)
+                  <input id="coordValue" type="text" inputmode="text" placeholder="Ej.: 38.973000, -5.797000" autocomplete="off" aria-describedby="coordHint">
+                </label>
+                <div class="actions geo-actions">
+                  <button class="btn secondary" id="detectCoordinates" type="button">↗ Detectar del enlace</button>
+                  <button class="btn secondary" id="useRestaurantLocation" type="button">⌖ Estoy en el restaurante</button>
+                  <button class="btn ghost" id="clearCoordinates" type="button">Quitar coordenadas</button>
+                </div>
+                <small>Los enlaces cortos de Maps no siempre incluyen coordenadas. Podés seguir guardando el restaurante sin ellas.</small>
+              </details>
+              <p id="coordHint" class="coord-status" role="status">Sin coordenadas: no aparecerá en «Cerca de mí».</p>
+            </div>
             <label class="field full">Nota (opcional)<textarea id="note" maxlength="600" placeholder="Ej.: Menú del día 13 €, fácil aparcar…"></textarea></label>
           </div>
           <div class="actions"><button class="btn primary" type="submit" id="saveBtn">＋ Guardar restaurante</button><button class="btn ghost hidden" type="button" id="cancelEdit">Cancelar</button></div>
@@ -85,8 +101,19 @@
       <section class="panel">
         <div class="sectiontop"><span class="pill">📍 Nuestra guía</span><span id="countText" class="meta">0 lugares</span></div>
         <h2>Restaurantes guardados</h2>
+        <div class="nearby-widget">
+          <div class="nearby-header"><div><strong>📍 Restaurantes cerca de mí</strong><p id="nearMessage">Consultamos tu ubicación solamente cuando lo pedís, sin guardarla.</p></div><button id="nearBtn" class="btn primary" type="button">⌖ Cerca de mí</button></div>
+          <div id="nearControls" class="near-controls hidden">
+            <label class="field">Distancia máxima
+              <select id="nearRadius"><option value="5">5 km</option><option value="10">10 km</option><option value="25" selected>25 km</option><option value="50">50 km</option><option value="100">100 km</option><option value="200">200 km</option></select>
+            </label>
+            <button id="nearClear" class="btn ghost" type="button">Ver todos</button>
+          </div>
+          <details class="near-test"><summary>¿Probando desde la PC? Usar coordenadas manuales</summary><div class="near-test-row"><input id="nearTestValue" type="text" placeholder="Latitud, longitud" aria-label="Coordenadas para probar cerca de mí"><button id="nearTestBtn" class="btn secondary" type="button">Probar zona</button></div><small>Sirve para simular que estás en un pueblo sin usar tu GPS.</small></details>
+        </div>
         <div class="searchrow"><input type="search" id="search" aria-label="Buscar" placeholder="🔎 Buscar restaurante o pueblo"><select id="filter" aria-label="Filtrar provincia"><option value="">Todas las provincias</option></select></div>
         <div class="places" id="places"><div class="empty">Cargando restaurantes…</div></div>
+        <details id="missingGeo" class="missing-geo hidden"></details>
       </section>
       <section id="membersPanel" class="panel hidden">
         <div class="sectiontop"><span class="pill">👥 Administrar equipo</span></div>
@@ -100,7 +127,7 @@
         <div class="actions"><button id="exportBtn" class="btn secondary" type="button">↓ Exportar JSON</button><button id="importBtn" class="btn ghost" type="button">↑ Importar JSON</button><input id="importFile" class="hidden" type="file" accept=".json,application/json"></div>
       </section>
     </div>
-    <p class="footer">Paradas para comer · La lista compartida necesita internet para sincronizarse. <span id="footerVersion">Versión equipo 2.0</span></p>
+    <p class="footer">Paradas para comer · La lista compartida necesita internet para sincronizarse. <span id="footerVersion">Versión equipo 3.0 · Cerca de mí</span></p>
   </main>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script type="module" src="./app.js"></script>

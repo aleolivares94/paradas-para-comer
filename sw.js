@@ -1,6 +1,6 @@
 // Solo almacena los archivos de la interfaz. Firebase y los datos se consultan online.
-const CACHE = 'paradas-equipo-v2';
-const ASSETS = ['./','./index.html','./styles.css','./app.js','./firebase-config.js','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
+const CACHE = 'paradas-equipo-v3';
+const ASSETS = ['./','./index.html','./styles.css','./app.js','./firebase-config.js','./location-utils.mjs','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)).then(() => self.skipWaiting()));
 });
